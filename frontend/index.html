@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ledger — Todo List</title>
+<style>
+  :root {
+    --paper: #F4F1E8;
+    --paper-line: #DCD5C3;
+    --ink: #2B2A28;
+    --ink-soft: #6B6558;
+    --blue: #2C4A6E;
+    --blue-soft: #DCE5EC;
+    --red: #A4453B;
+    --green: #4A6B4D;
+    --font-display: 'Georgia', 'Iowan Old Style', serif;
+    --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    --font-mono: 'Courier New', Courier, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--paper);
+    background-image:
+      repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 38px,
+        var(--paper-line) 39px
+      );
+    color: var(--ink);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    padding: 48px 24px 80px;
+  }
+
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 32px;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  h1 {
+    font-family: var(--font-display);
+    font-size: 2.1rem;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .count-tag {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--ink-soft);
+    letter-spacing: 0.04em;
+  }
+
+  /* Search */
+  .search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+    border: 1.5px solid var(--ink);
+    background: #fff;
+    padding: 10px 14px;
+  }
+  .search-row svg { flex-shrink: 0; opacity: 0.55; }
+  .search-row input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    font-size: 0.92rem;
+    width: 100%;
+    color: var(--ink);
+  }
+  .search-row input::placeholder { color: #A39C8C; }
+
+  /* Form card */
+  .form-card {
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    padding: 20px 20px 16px;
+    margin-bottom: 36px;
+    position: relative;
+  }
+  .form-card::before {
+    content: attr(data-label);
+    position: absolute;
+    top: -11px;
+    left: 16px;
+    background: var(--paper);
+    padding: 0 8px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .field input[type="text"],
+  .field textarea {
+    width: 100%;
+    border: none;
+    border-bottom: 1.5px solid var(--paper-line);
+    background: transparent;
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    padding: 6px 2px;
+    color: var(--ink);
+    outline: none;
+    resize: vertical;
+    transition: border-color 0.15s ease;
+  }
+  .field input[type="text"]:focus,
+  .field textarea:focus { border-bottom-color: var(--blue); }
+  .char-count {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: var(--ink-soft);
+    text-align: right;
+    margin-top: 2px;
+  }
+  .char-count.warn { color: var(--red); }
+
+  .form-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 8px;
+  }
+
+  button {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    border: 1.5px solid var(--ink);
+    background: var(--ink);
+    color: var(--paper);
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+  }
+  button:hover { background: var(--blue); border-color: var(--blue); }
+  button.secondary {
+    background: transparent;
+    color: var(--ink);
+  }
+  button.secondary:hover { background: var(--ink); color: var(--paper); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+
+  .form-msg {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    margin-top: 10px;
+  }
+  .form-msg.error { color: var(--red); }
+  .form-msg.success { color: var(--green); }
+
+  /* List */
+  .list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 10px;
+  }
+  .list-header h2 {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    margin: 0;
+  }
+
+  ul.todo-list { list-style: none; margin: 0; padding: 0; }
+
+  li.todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 14px 4px;
+    border-bottom: 1px solid var(--paper-line);
+  }
+
+  .checkbox {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+    margin-top: 2px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    transition: background 0.15s ease;
+  }
+  .checkbox.done { background: var(--blue); border-color: var(--blue); }
+  .checkbox svg { opacity: 0; transition: opacity 0.1s ease; }
+  .checkbox.done svg { opacity: 1; }
+
+  .todo-body { flex: 1; min-width: 0; }
+  .todo-title {
+    font-size: 1rem;
+    font-weight: 600;
+    word-break: break-word;
+  }
+  .todo-item.done .todo-title {
+    text-decoration: line-through;
+    text-decoration-color: var(--ink-soft);
+    color: var(--ink-soft);
+  }
+  .todo-desc {
+    font-size: 0.88rem;
+    color: var(--ink-soft);
+    margin-top: 3px;
+    word-break: break-word;
+  }
+  .todo-meta {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: #ABA391;
+    margin-top: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  .todo-actions {
+    flex-shrink: 0;
+    display: flex;
+    gap: 6px;
+  }
+  .icon-btn {
+    border: none;
+    background: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--ink-soft);
+    transition: color 0.15s ease;
+  }
+  .icon-btn:hover { color: var(--blue); }
+  .icon-btn.delete:hover { color: var(--red); }
+
+  .empty-state {
+    text-align: center;
+    padding: 48px 20px;
+    color: var(--ink-soft);
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 24px;
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--ink-soft);
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 48px;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    color: #ABA391;
+  }
+
+  @media (max-width: 520px) {
+    h1 { font-size: 1.6rem; }
+    .form-card { padding: 16px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+  }
+
+  button:focus-visible,
+  .checkbox:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  .icon-btn:focus-visible {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>ToDo list</h1>
+      <span class="count-tag" id="countTag">0 entries</span>
+    </header>
+
+    <div class="search-row">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" id="searchInput" placeholder="Find a task by title or description…" />
+    </div>
+
+    <div class="form-card" id="formLabel" data-label="New entry">
+      <form id="todoForm">
+        <div class="field">
+          <label for="idInput">ID</label>
+          <input type="number" id="idInput" required placeholder="Enter a unique ID" />
+        </div>
+        <div class="field">
+          <label for="titleInput">Title</label>
+          <input type="text" id="titleInput" maxlength="100" required placeholder="What needs doing?" />
+          <div class="char-count" id="charCount">0 / 100</div>
+        </div>
+        <div class="field">
+          <label for="descInput">Description (optional)</label>
+          <textarea id="descInput" rows="2" placeholder="Any extra detail…"></textarea>
+        </div>
+        <div class="form-actions">
+          <button type="submit" id="submitBtn">Add task</button>
+          <button type="button" class="secondary" id="cancelBtn" style="display:none;">Cancel edit</button>
+        </div>
+        <div class="form-msg" id="formMsg"></div>
+      </form>
+    </div>
+
+    <div class="list-header">
+      <h2>Tasks</h2>
+    </div>
+
+    <div id="listArea">
+      <div class="loading">Loading…</div>
+    </div>
+
+    <footer>connected to /todos</footer>
+  </div>
+
+<script>
+  const API_BASE = "http://localhost:8001";
+
+  let todos = [];
+  let editId = null;
+
+  const listArea = document.getElementById("listArea");
+  const countTag = document.getElementById("countTag");
+  const searchInput = document.getElementById("searchInput");
+  const todoForm = document.getElementById("todoForm");
+  const idInput = document.getElementById("idInput");
+  const titleInput = document.getElementById("titleInput");
+  const descInput = document.getElementById("descInput");
+  const charCount = document.getElementById("charCount");
+  const submitBtn = document.getElementById("submitBtn");
+  const cancelBtn = document.getElementById("cancelBtn");
+  const formMsg = document.getElementById("formMsg");
+  const formLabel = document.getElementById("formLabel");
+
+  titleInput.addEventListener("input", () => {
+    const len = titleInput.value.length;
+    charCount.textContent = `${len} / 100`;
+    charCount.classList.toggle("warn", len > 0 && len < 3);
+  });
+
+  searchInput.addEventListener("input", render);
+
+  async function fetchTodos() {
+    listArea.innerHTML = '<div class="loading">Loading…</div>';
+    try {
+      const res = await fetch(`${API_BASE}/todos`);
+      if (!res.ok) throw new Error("Request failed");
+      todos = await res.json();
+      render();
+    } catch (err) {
+      listArea.innerHTML = `<div class="empty-state">Couldn't reach the server. Is the backend running on ${API_BASE}?</div>`;
+    }
+  }
+
+  function render() {
+    const q = searchInput.value.trim().toLowerCase();
+    const filtered = q
+      ? todos.filter(t =>
+          (t.title || "").toLowerCase().includes(q) ||
+          (t.description || "").toLowerCase().includes(q)
+        )
+      : todos;
+
+    countTag.textContent = `${todos.length} ${todos.length === 1 ? "entry" : "entries"}`;
+
+    if (filtered.length === 0) {
+      listArea.innerHTML = `<div class="empty-state">${
+        todos.length === 0 ? "No tasks yet. Add your first one above." : "Nothing matches that search."
+      }</div>`;
+      return;
+    }
+
+    const ul = document.createElement("ul");
+    ul.className = "todo-list";
+
+    filtered.forEach(t => {
+      const li = document.createElement("li");
+      li.className = "todo-item" + (t.completed ? " done" : "");
+
+      const created = t.created_at ? formatDate(t.created_at) : "";
+
+      li.innerHTML = `
+        <div class="checkbox ${t.completed ? "done" : ""}" data-id="${t.id}" role="checkbox" aria-checked="${t.completed}" tabindex="0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="todo-body">
+          <div class="todo-title">${escapeHtml(t.title)}</div>
+          ${t.description ? `<div class="todo-desc">${escapeHtml(t.description)}</div>` : ""}
+          <div class="todo-meta">#${t.id}${created ? " · " + created : ""}</div>
+        </div>
+        <div class="todo-actions">
+          <button class="icon-btn edit" data-id="${t.id}" title="Edit" aria-label="Edit task">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="icon-btn delete" data-id="${t.id}" title="Delete" aria-label="Delete task">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        </div>
+      `;
+      ul.appendChild(li);
+    });
+
+    listArea.innerHTML = "";
+    listArea.appendChild(ul);
+
+    listArea.querySelectorAll(".checkbox").forEach(cb => {
+      cb.addEventListener("click", () => toggleComplete(Number(cb.dataset.id)));
+      cb.addEventListener("keydown", e => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          toggleComplete(Number(cb.dataset.id));
+        }
+      });
+    });
+    listArea.querySelectorAll(".icon-btn.edit").forEach(btn => {
+      btn.addEventListener("click", () => startEdit(Number(btn.dataset.id)));
+    });
+    listArea.querySelectorAll(".icon-btn.delete").forEach(btn => {
+      btn.addEventListener("click", () => deleteTodo(Number(btn.dataset.id)));
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str ?? "";
+    return div.innerHTML;
+  }
+
+  function formatDate(iso) {
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    } catch { return ""; }
+  }
+
+  function startEdit(id) {
+    const t = todos.find(x => x.id === id);
+    if (!t) return;
+    editId = id;
+    idInput.value = t.id;
+    idInput.disabled = true;
+    titleInput.value = t.title || "";
+    descInput.value = t.description || "";
+    charCount.textContent = `${titleInput.value.length} / 100`;
+    submitBtn.textContent = "Save changes";
+    cancelBtn.style.display = "inline-block";
+    formLabel.dataset.label = `Editing #${id}`;
+    formMsg.textContent = "";
+    formMsg.className = "form-msg";
+    titleInput.focus();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function resetForm() {
+    editId = null;
+    todoForm.reset();
+    idInput.disabled = false;
+    charCount.textContent = "0 / 100";
+    submitBtn.textContent = "Add task";
+    cancelBtn.style.display = "none";
+    formLabel.dataset.label = "New entry";
+  }
+
+  cancelBtn.addEventListener("click", () => {
+    resetForm();
+    formMsg.textContent = "";
+    formMsg.className = "form-msg";
+  });
+
+  todoForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const title = titleInput.value.trim();
+    if (title.length < 3 || title.length > 100) {
+      showMsg("Title must be between 3 and 100 characters.", true);
+      return;
+    }
+    if (!editId && !idInput.value) {
+      showMsg("Please enter an ID.", true);
+      return;
+    }
+
+    submitBtn.disabled = true;
+    const payload = {
+      title,
+      description: descInput.value.trim() || null,
+    };
+    if (!editId) {
+      payload.id = Number(idInput.value);
+    }
+
+    try {
+      let res;
+      if (editId) {
+        const existing = todos.find(t => t.id === editId);
+        res = await fetch(`${API_BASE}/todos/${editId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, completed: existing ? existing.completed : false }),
+        });
+      } else {
+        res = await fetch(`${API_BASE}/todos`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Operation failed");
+      }
+      showMsg(editId ? "Task updated." : "Task added.", false);
+      resetForm();
+      fetchTodos();
+    } catch (err) {
+      showMsg(err.message || "Something went wrong.", true);
+    }
+    submitBtn.disabled = false;
+  });
+
+  function showMsg(text, isError) {
+    formMsg.textContent = text;
+    formMsg.className = "form-msg " + (isError ? "error" : "success");
+    if (!isError) setTimeout(() => { formMsg.textContent = ""; formMsg.className = "form-msg"; }, 4000);
+  }
+
+  async function toggleComplete(id) {
+    const t = todos.find(x => x.id === id);
+    if (!t) return;
+    try {
+      const res = await fetch(`${API_BASE}/todos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: t.title, description: t.description, completed: !t.completed }),
+      });
+      if (!res.ok) throw new Error();
+      fetchTodos();
+    } catch {
+      showMsg("Couldn't update task status.", true);
+    }
+  }
+
+  async function deleteTodo(id) {
+    if (!confirm("Delete this task?")) return;
+    try {
+      const res = await fetch(`${API_BASE}/todos/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+      fetchTodos();
+    } catch {
+      showMsg("Couldn't delete task.", true);
+    }
+  }
+
+  fetchTodos();
+</script>
+</body>
+</html>
